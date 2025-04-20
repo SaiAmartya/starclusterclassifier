@@ -2,9 +2,9 @@
 
 ## Overview
 
-This project implements a machine learning approach to classify astronomical star clusters (Open vs. Globular) based primarily on their kinematic properties (how their member stars move). It utilizes data from the Gaia DR3 mission and leverages Python libraries for data acquisition, analysis, and machine learning.
+This project implements a machine learning approach to classify star clusters with the most basic classifications (Open vs. Globular) based primarily on their kinematic properties. It uses data from the Gaia DR3 missions data acquisition, analysis, and machine learning.
 
-This project was developed in response to the Astronomy prompt for the STEAM Innovation Challenge 2025, which encourages improving star cluster classification methods to better understand stellar and galactic evolution.
+This project was created for the Astronomy Prompt in the STEAM Innovation Challenge 2025.
 
 ## Features
 
