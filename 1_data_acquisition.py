@@ -193,6 +193,14 @@ def get_clean_cluster_data(cluster_name, params):
 
 # --- Main Execution ---
 output_filename = 'cleaned_cluster_members.fits'
+
+# Check if output file already exists
+file_exists = os.path.isfile(output_filename)
+if file_exists:
+    print(f"\nNOTE: The output file '{output_filename}' already exists and will be overwritten.")
+    print("If you want to keep the existing file, press Ctrl+C now to cancel.")
+    # Optional: You could add a user prompt here, or add a parameter to skip overwriting
+
 all_cluster_members = [] # Store results in a list
 
 print("Starting Data Acquisition Process...")
@@ -231,8 +239,12 @@ if valid_tables:
 
            # Save the combined table to a FITS file for the next script
            try:
+               # File existence was already checked at the start
                combined_data.write(output_filename, format='fits', overwrite=True)
-               print(f"\nCleaned data saved to '{output_filename}'")
+               if file_exists:
+                   print(f"\nExisting file was overwritten. Cleaned data saved to '{output_filename}'")
+               else:
+                   print(f"\nCleaned data saved to '{output_filename}'")
            except Exception as e:
                 print(f"\nError saving data to FITS file: {e}")
         else:

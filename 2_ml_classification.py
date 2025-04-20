@@ -207,7 +207,7 @@ if len(df_cluster_kinematics) > 1: # Need at least 2 samples for train/test spli
     print(f"Using features: {available_features}")
 
     X = df_cluster_kinematics[available_features]
-    y = df_cluster_kinematics['cluster_type'].apply(lambda x: 0 if x == 'Open' else 1) # 0=Open, 1=Globular
+    y = df_cluster_kinematics['cluster_type'].apply(lambda x: 0 if x == b'Open' else 1) # 0=Open, 1=Globular
 
     # Optional: Scale features (can improve performance for some models)
     # scaler = StandardScaler()
