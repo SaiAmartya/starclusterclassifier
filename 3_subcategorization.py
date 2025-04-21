@@ -524,3 +524,121 @@ else:
     print("\nCannot proceed with subcategorization: Not enough cluster data available (need at least 2).")
 
 print("\nSubcategorization Script Finished.")
+
+# --- 4. Evaluation of Clustering Quality ---
+def evaluate_clustering(output_filename):
+    """
+    Evaluate the quality of the clustering results and generate evaluation plots.
+    """
+    print("\n--- Evaluating Clustering Quality ---")
+    
+    # Load the results file
+    df_results = pd.read_csv(output_filename)
+    
+    # Separate open and globular clusters
+    open_clusters = df_results[df_results['cluster_type'] == 'Open'].copy()
+    globular_clusters = df_results[df_results['cluster_type'] == 'Globular'].copy()
+    
+    # Create figure for comparing subcategories against known properties
+    plt.figure(figsize=(15, 10))
+    
+    # Define metrics to evaluate
+    metrics = [
+        ('mean_parallax', 'Mean Parallax (mas)'),
+        ('dispersion_3d_kms', '3D Velocity Dispersion (km/s)'),
+        ('orbital_Lz', 'Orbital Angular Momentum (Lz)'),
+        ('eccentricity', 'Orbital Eccentricity'),
+        ('galactic_r', 'Galactocentric Distance (kpc)')
+    ]
+    
+    # Plot distribution of key metrics for each subcategory
+    for i, (metric, title) in enumerate(metrics):
+        plt.subplot(2, 3, i+1)
+        
+        # Plot open clusters
+        for subcategory in open_clusters['subcategory'].unique():
+            subset = open_clusters[open_clusters['subcategory'] == subcategory]
+            plt.scatter(subset['subcategory_id'], subset[metric], 
+                       alpha=0.7, s=80, marker='o',
+                       label=f"Open: {subcategory}")
+        
+        # Plot globular clusters
+        for subcategory in globular_clusters['subcategory'].unique():
+            subset = globular_clusters[globular_clusters['subcategory'] == subcategory]
+            plt.scatter(subset['subcategory_id'], subset[metric], 
+                       alpha=0.7, s=80, marker='^',
+                       label=f"Globular: {subcategory}")
+        
+        plt.xlabel('Subcategory ID')
+        plt.ylabel(title)
+        plt.title(f'Distribution of {title} by Subcategory')
+        
+        # Only show legend for the first plot to avoid clutter
+        if i == 0:
+            plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    
+    plt.tight_layout()
+    plt.savefig('clustering_evaluation.png')
+    
+    # Create validation plots for clustering quality
+    plt.figure(figsize=(12, 8))
+    
+    # Scatter plot of the two main features for K-means with cluster centers marked
+    # For Open Clusters
+    if len(open_clusters) >= 3:
+        plt.subplot(1, 2, 1)
+        for subcategory in open_clusters['subcategory'].unique():
+            subset = open_clusters[open_clusters['subcategory'] == subcategory]
+            plt.scatter(subset['orbital_Lz'], subset['dispersion_3d_kms'], 
+                       alpha=0.7, s=80, marker='o',
+                       label=f"{subcategory}")
+        
+        # Add cluster centers from the script execution output
+        centers = [
+            (-1953.4, 6.6, 'Young Disk'),
+            (-1406.1, 24.3, 'Old Disk'),
+            (-1828.6, 15.4, 'Middle-Aged Disk')
+        ]
+        
+        for x, y, label in centers:
+            plt.scatter(x, y, s=200, c='red', marker='X', 
+                       label=f"Center: {label}", edgecolors='black')
+        
+        plt.xlabel('Orbital Angular Momentum (Lz)')
+        plt.ylabel('3D Velocity Dispersion (km/s)')
+        plt.title('Open Cluster Subcategories with Centers')
+        plt.legend()
+    
+    # For Globular Clusters
+    if len(globular_clusters) >= 3:
+        plt.subplot(1, 2, 2)
+        for subcategory in globular_clusters['subcategory'].unique():
+            subset = globular_clusters[globular_clusters['subcategory'] == subcategory]
+            plt.scatter(subset['orbital_Lz'], subset['dispersion_3d_kms'], 
+                       alpha=0.7, s=80, marker='^',
+                       label=f"{subcategory}")
+        
+        # Add cluster centers from the script execution output
+        centers = [
+            (403.0, 19.2, 'Disk/Bulge'),
+            (-1011.2, 39.1, 'Outer Halo'),
+            (-1118.1, 13.0, 'Inner Halo')
+        ]
+        
+        for x, y, label in centers:
+            plt.scatter(x, y, s=200, c='red', marker='X', 
+                       label=f"Center: {label}", edgecolors='black')
+        
+        plt.xlabel('Orbital Angular Momentum (Lz)')
+        plt.ylabel('3D Velocity Dispersion (km/s)')
+        plt.title('Globular Cluster Subcategories with Centers')
+        plt.legend()
+    
+    plt.tight_layout()
+    plt.savefig('cluster_centers_validation.png')
+    
+    print("\nEvaluation plots saved as 'clustering_evaluation.png' and 'cluster_centers_validation.png'")
+
+# Run the evaluation if this script is run directly
+if __name__ == "__main__":
+    evaluate_clustering(output_filename)
