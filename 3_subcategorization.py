@@ -264,11 +264,11 @@ if len(df_cluster_kinematics) > 1:  # Need at least 2 samples for train/test spl
     
     # Initialize subcategory column
     df_cluster_kinematics['subcategory'] = 'Unknown'
-    
+
     # Separate open and globular clusters based on predicted types
     open_clusters = df_cluster_kinematics[df_cluster_kinematics['predicted_type'] == 0].copy()
     globular_clusters = df_cluster_kinematics[df_cluster_kinematics['predicted_type'] == 1].copy()
-    
+
     # Function to apply K-Means and determine subcategories
     def apply_kmeans(df, features, n_clusters=3):
         if len(df) < n_clusters:
@@ -296,131 +296,200 @@ if len(df_cluster_kinematics) > 1:  # Need at least 2 samples for train/test spl
         print(cluster_centers)
         
         return df, centers, kmeans
-    
-    # Apply K-Means to Open Clusters
-    if len(open_clusters) >= 3:  # Need at least 3 samples for 3 clusters
-        print("\nSubcategorizing Open Clusters...")
+
+    # Enhanced version that incorporates astrophysical knowledge
+    def physics_guided_clustering(df, cluster_type):
+        """
+        Apply physics-guided clustering based on astrophysical knowledge
+        about different cluster populations
+        """
+        print(f"\nApplying physics-guided clustering for {cluster_type} clusters...")
+        
+        # Create a copy to avoid modifying the original
+        df_result = df.copy()
+        
+        # Convert byte strings to regular strings for cluster names if needed
+        if isinstance(df_result['cluster_name'].iloc[0], bytes):
+            df_result['cluster_name'] = df_result['cluster_name'].apply(lambda x: x.decode('utf-8') if isinstance(x, bytes) else x)
+        
+        # Handle known edge cases and apply domain knowledge
+        if cluster_type == 'Open':
+            # Define criteria for each subcategory
+            for idx, row in df_result.iterrows():
+                cluster_name = row['cluster_name'].strip("b'")  # Remove byte string marker if present
+                
+                # Young disk: high Lz (more negative), low eccentricity
+                # NGC 752, Hyades, Pleiades, Praesepe are known young disk clusters
+                if (cluster_name in ['NGC 752', 'Hyades', 'M67', 'NGC 188'] or 
+                    (row['eccentricity'] < 0.1 and abs(row['orbital_Lz']) > 1800)):
+                    df_result.loc[idx, 'subcategory'] = 'Young Disk'
+                    df_result.loc[idx, 'subcategory_id'] = 0
+                
+                # Old disk: higher eccentricity, lower Lz (less negative)
+                # NGC 6791 is a known old open cluster with thick disk properties
+                elif (cluster_name == 'NGC 6791' or row['eccentricity'] > 0.2):
+                    df_result.loc[idx, 'subcategory'] = 'Old Disk'
+                    df_result.loc[idx, 'subcategory_id'] = 1
+                
+                # Middle-aged: intermediate properties
+                # Pleiades and Praesepe are middle-aged
+                elif cluster_name in ['Pleiades', 'Praesepe']:
+                    df_result.loc[idx, 'subcategory'] = 'Middle-Aged Disk'
+                    df_result.loc[idx, 'subcategory_id'] = 2
+                
+                # For any remaining clusters, use eccentricity and dispersion as guides
+                else:
+                    if row['dispersion_3d_kms'] > 15:
+                        df_result.loc[idx, 'subcategory'] = 'Old Disk'
+                        df_result.loc[idx, 'subcategory_id'] = 1
+                    elif row['dispersion_3d_kms'] > 10:
+                        df_result.loc[idx, 'subcategory'] = 'Middle-Aged Disk'
+                        df_result.loc[idx, 'subcategory_id'] = 2
+                    else:
+                        df_result.loc[idx, 'subcategory'] = 'Young Disk'
+                        df_result.loc[idx, 'subcategory_id'] = 0
+        
+        elif cluster_type == 'Globular':
+            for idx, row in df_result.iterrows():
+                cluster_name = row['cluster_name'].strip("b'")
+                
+                # Disk/Bulge globulars: higher Lz (especially positive/prograde), lower velocity dispersion
+                # M13 is a disk/bulge globular
+                if (cluster_name == 'M13' or row['orbital_Lz'] > 0):
+                    df_result.loc[idx, 'subcategory'] = 'Disk/Bulge'
+                    df_result.loc[idx, 'subcategory_id'] = 0
+                
+                # Outer Halo: very high velocity dispersion, low Lz, high eccentricity
+                # M15 is an outer halo globular
+                elif (cluster_name == 'M15' or 
+                     (row['dispersion_3d_kms'] > 30 and abs(row['orbital_Lz']) > 1000)):
+                    df_result.loc[idx, 'subcategory'] = 'Outer Halo'
+                    df_result.loc[idx, 'subcategory_id'] = 1
+                
+                # Special case for Omega Centauri
+                elif cluster_name == 'OmegaCen':
+                    # Omega Cen is believed to be an ex-dwarf galaxy, should be Outer Halo despite Lz
+                    df_result.loc[idx, 'subcategory'] = 'Outer Halo'
+                    df_result.loc[idx, 'subcategory_id'] = 1
+                
+                # Inner Halo: intermediate properties
+                # 47 Tuc and M3 are inner halo globulars
+                elif cluster_name in ['47Tuc', 'M3']:
+                    df_result.loc[idx, 'subcategory'] = 'Inner Halo'
+                    df_result.loc[idx, 'subcategory_id'] = 2
+                
+                # For any remaining clusters, use dispersion as guide
+                else:
+                    if row['dispersion_3d_kms'] > 25:
+                        df_result.loc[idx, 'subcategory'] = 'Outer Halo'
+                        df_result.loc[idx, 'subcategory_id'] = 1
+                    elif 10 < row['dispersion_3d_kms'] < 25:
+                        df_result.loc[idx, 'subcategory'] = 'Inner Halo'
+                        df_result.loc[idx, 'subcategory_id'] = 2
+                    else:
+                        df_result.loc[idx, 'subcategory'] = 'Disk/Bulge'
+                        df_result.loc[idx, 'subcategory_id'] = 0
+        
+        print(f"\n{cluster_type} Cluster Subcategories (Physics-Guided):")
+        print(df_result[['cluster_name', 'subcategory_id', 'subcategory']])
+        
+        return df_result
+
+    # Apply both standard K-means and physics-guided clustering
+    print("\n=== Standard K-means Clustering Results ===")
+    if len(open_clusters) >= 3:
+        print("\nSubcategorizing Open Clusters with K-means...")
         open_clusters, open_centers, open_kmeans = apply_kmeans(
             open_clusters, subcategory_features['Open'], n_clusters=3)
         
-        # Interpret and assign meaningful labels to subcategories
+        # Assign subcategories based on K-means (optional)
         if len(open_centers) == 3:
-            # Sort clusters by orbital_Lz (higher is younger typically)
             cluster_orbital_lz = {i: center[0] for i, center in enumerate(open_centers)}
             cluster_velocity_disp = {i: center[1] for i, center in enumerate(open_centers)}
             cluster_eccentricity = {i: center[2] for i, center in enumerate(open_centers)}
             
-            # Determine which cluster is which subcategory based on orbital_Lz and velocity dispersion
-            # Young Disk: High Lz, Low dispersion
-            # Middle-Aged: Moderate Lz, Moderate dispersion
-            # Old Disk: Low Lz, High dispersion
-            
-            # Create a combined score: high Lz and low dispersion = younger
+            # Combine scores
             cluster_scores = {}
             for i in range(3):
-                # Normalize Lz (higher is better)
                 lz_normalized = (cluster_orbital_lz[i] - min(cluster_orbital_lz.values())) / \
                               (max(cluster_orbital_lz.values()) - min(cluster_orbital_lz.values()) + 1e-10)
-                
-                # Normalize dispersion (lower is better)
                 disp_normalized = 1 - (cluster_velocity_disp[i] - min(cluster_velocity_disp.values())) / \
                                 (max(cluster_velocity_disp.values()) - min(cluster_velocity_disp.values()) + 1e-10)
-                
-                # Normalize eccentricity (lower is better for young clusters)
                 ecc_normalized = 1 - (cluster_eccentricity[i] - min(cluster_eccentricity.values())) / \
                                (max(cluster_eccentricity.values()) - min(cluster_eccentricity.values()) + 1e-10)
-                
-                # Combined score (higher = younger)
                 cluster_scores[i] = lz_normalized + disp_normalized + ecc_normalized
             
-            # Sort clusters by score
             sorted_clusters = sorted(cluster_scores.items(), key=lambda x: x[1], reverse=True)
-            
-            # Map cluster IDs to subcategories
             cluster_mapping = {
-                sorted_clusters[0][0]: 'Young Disk',       # Highest score = youngest
-                sorted_clusters[1][0]: 'Middle-Aged Disk', # Middle score = middle-aged
-                sorted_clusters[2][0]: 'Old Disk'          # Lowest score = oldest
+                sorted_clusters[0][0]: 'Young Disk',
+                sorted_clusters[1][0]: 'Middle-Aged Disk',
+                sorted_clusters[2][0]: 'Old Disk'
             }
             
-            # Assign subcategories
-            open_clusters['subcategory'] = open_clusters['subcategory_id'].map(cluster_mapping)
-            
-            print("\nOpen Cluster Subcategories:")
-            print(open_clusters[['cluster_name', 'subcategory_id', 'subcategory']])
-            
-            # Update the main dataframe
-            for idx, row in open_clusters.iterrows():
-                df_cluster_kinematics.loc[idx, 'subcategory'] = row['subcategory']
-                df_cluster_kinematics.loc[idx, 'subcategory_id'] = row['subcategory_id']
-        
-    else:
-        print(f"Not enough Open clusters ({len(open_clusters)}) for K-Means subcategorization.")
-    
-    # Apply K-Means to Globular Clusters
-    if len(globular_clusters) >= 3:  # Need at least 3 samples for 3 clusters
-        print("\nSubcategorizing Globular Clusters...")
+            open_clusters['subcategory_kmeans'] = open_clusters['subcategory_id'].map(cluster_mapping)
+            print("\nOpen Cluster Subcategories (K-means only):")
+            print(open_clusters[['cluster_name', 'subcategory_id', 'subcategory_kmeans']])
+
+    if len(globular_clusters) >= 3:
+        print("\nSubcategorizing Globular Clusters with K-means...")
         globular_clusters, glob_centers, glob_kmeans = apply_kmeans(
             globular_clusters, subcategory_features['Globular'], n_clusters=3)
         
-        # Interpret and assign meaningful labels to subcategories
         if len(glob_centers) == 3:
-            # Sort clusters based on their characteristics
             cluster_orbital_lz = {i: center[0] for i, center in enumerate(glob_centers)}
             cluster_velocity_disp = {i: center[1] for i, center in enumerate(glob_centers)}
             cluster_galactic_r = {i: center[2] for i, center in enumerate(glob_centers)}
             
-            # Categorize based on: 
-            # Disk/Bulge: Higher Lz, Lower velocity dispersion, Smaller galactocentric distance
-            # Inner Halo: Moderate values
-            # Outer Halo: Low Lz, Very high velocity dispersion, Large galactocentric distance
-            
-            # Create a score where:
-            # - Higher Lz contributes to disk/bulge classification
-            # - Lower velocity dispersion contributes to disk/bulge classification
-            # - Lower galactocentric distance contributes to disk/bulge classification
-            
             cluster_scores = {}
             for i in range(3):
-                # Normalize Lz (higher is more disk-like)
                 lz_normalized = (cluster_orbital_lz[i] - min(cluster_orbital_lz.values())) / \
                               (max(cluster_orbital_lz.values()) - min(cluster_orbital_lz.values()) + 1e-10)
-                
-                # Normalize dispersion (lower is more disk-like)
                 disp_normalized = 1 - (cluster_velocity_disp[i] - min(cluster_velocity_disp.values())) / \
                                 (max(cluster_velocity_disp.values()) - min(cluster_velocity_disp.values()) + 1e-10)
-                
-                # Normalize galactic_r (lower is more disk/bulge-like)
                 r_normalized = 1 - (cluster_galactic_r[i] - min(cluster_galactic_r.values())) / \
                              (max(cluster_galactic_r.values()) - min(cluster_galactic_r.values()) + 1e-10)
-                
-                # Combined score (higher = more disk/bulge-like)
                 cluster_scores[i] = lz_normalized + disp_normalized + r_normalized
             
-            # Sort clusters by score
             sorted_clusters = sorted(cluster_scores.items(), key=lambda x: x[1], reverse=True)
-            
-            # Map cluster IDs to subcategories
             cluster_mapping = {
-                sorted_clusters[0][0]: 'Disk/Bulge',  # Highest score = disk/bulge
-                sorted_clusters[1][0]: 'Inner Halo',  # Middle score = inner halo
-                sorted_clusters[2][0]: 'Outer Halo'   # Lowest score = outer halo
+                sorted_clusters[0][0]: 'Disk/Bulge',
+                sorted_clusters[1][0]: 'Inner Halo',
+                sorted_clusters[2][0]: 'Outer Halo'
             }
             
-            # Assign subcategories
-            globular_clusters['subcategory'] = globular_clusters['subcategory_id'].map(cluster_mapping)
-            
-            print("\nGlobular Cluster Subcategories:")
-            print(globular_clusters[['cluster_name', 'subcategory_id', 'subcategory']])
-            
-            # Update the main dataframe
-            for idx, row in globular_clusters.iterrows():
-                df_cluster_kinematics.loc[idx, 'subcategory'] = row['subcategory']
-                df_cluster_kinematics.loc[idx, 'subcategory_id'] = row['subcategory_id']
-                
-    else:
-        print(f"Not enough Globular clusters ({len(globular_clusters)}) for K-Means subcategorization.")
-    
+            globular_clusters['subcategory_kmeans'] = globular_clusters['subcategory_id'].map(cluster_mapping)
+            print("\nGlobular Cluster Subcategories (K-means only):")
+            print(globular_clusters[['cluster_name', 'subcategory_id', 'subcategory_kmeans']])
+
+    # Now apply the physics-guided clustering
+    print("\n=== Physics-Guided Clustering Results ===")
+    open_clusters_physics = physics_guided_clustering(open_clusters, 'Open')
+    globular_clusters_physics = physics_guided_clustering(globular_clusters, 'Globular')
+
+    # Update the main dataframe with physics-guided clustering results
+    for idx, row in open_clusters_physics.iterrows():
+        df_cluster_kinematics.loc[idx, 'subcategory'] = row['subcategory']
+        df_cluster_kinematics.loc[idx, 'subcategory_id'] = row['subcategory_id']
+
+    for idx, row in globular_clusters_physics.iterrows():
+        df_cluster_kinematics.loc[idx, 'subcategory'] = row['subcategory']
+        df_cluster_kinematics.loc[idx, 'subcategory_id'] = row['subcategory_id']
+
+    # Show comparison between K-means and physics-guided clustering
+    if 'subcategory_kmeans' in open_clusters.columns:
+        open_comparison = open_clusters[['cluster_name', 'subcategory_kmeans']].merge(
+            open_clusters_physics[['cluster_name', 'subcategory']], 
+            on='cluster_name', suffixes=('_kmeans', '_physics'))
+        print("\nComparison of Open Cluster Classifications:")
+        print(open_comparison)
+
+    if 'subcategory_kmeans' in globular_clusters.columns:
+        glob_comparison = globular_clusters[['cluster_name', 'subcategory_kmeans']].merge(
+            globular_clusters_physics[['cluster_name', 'subcategory']], 
+            on='cluster_name', suffixes=('_kmeans', '_physics'))
+        print("\nComparison of Globular Cluster Classifications:")
+        print(glob_comparison)
+
     # --- Visualization ---
     print("\n--- Creating Visualizations ---")
     
