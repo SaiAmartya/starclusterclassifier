@@ -37,15 +37,15 @@ cluster_params = {
         'coord': SkyCoord(ra=132.825*u.deg, dec=11.8167*u.deg, frame='icrs'), 'radius': 0.5 * u.deg,
         'parallax_range': (1.0, 1.4), 'pmra_range': (-12, -10), 'pmdec_range': (-4, -2), 'type': 'Open'
      },
-     'NGC 188': { # Very Old Open Cluster
+    'NGC 188': { # Very Old Open Cluster
         'coord': SkyCoord(ra=12.125*u.deg, dec=85.258*u.deg, frame='icrs'), 'radius': 0.3 * u.deg,
         'parallax_range': (0.4, 0.7), 'pmra_range': (-3, 0), 'pmdec_range': (-2, 1), 'type': 'Open'
      },
-     'NGC 6791': { # Old, Metal-Rich Open Cluster
+    'NGC 6791': { # Old, Metal-Rich Open Cluster
          'coord': SkyCoord(ra=290.217*u.deg, dec=37.772*u.deg, frame='icrs'), 'radius': 0.2 * u.deg,
          'parallax_range': (0.20, 0.30), 'pmra_range': (-1.5, 0.5), 'pmdec_range': (-3, -1), 'type': 'Open'
      },
-     'NGC 752': {
+    'NGC 752': {
         'coord': SkyCoord(ra=28.38*u.deg, dec=37.85*u.deg, frame='icrs'), 'radius': 0.7 * u.deg,
         'parallax_range': (2.0, 2.6), 'pmra_range': (8, 14), 'pmdec_range': (-14, -9), 'type': 'Open'
     },
@@ -77,6 +77,38 @@ cluster_params = {
     'OmegaCen': { # NGC 5139 - Very massive globular, maybe former dwarf galaxy core
         'coord': SkyCoord(ra=201.697*u.deg, dec=-47.479*u.deg, frame='icrs'), 'radius': 0.8 * u.deg,
         'parallax_range': (0.15, 0.25), 'pmra_range': (-4, -2), 'pmdec_range': (-7, -5), 'type': 'Globular'
+    },
+    'NGC 2516': {
+        'coord': SkyCoord(ra=119.5833*u.deg, dec=-60.8667*u.deg, frame='icrs'),
+        'radius': 0.25 * u.deg,
+        'parallax_range': (1.8, 3.0),      # mas
+        'pmra_range': (-6, -3),            # mas/yr
+        'pmdec_range': (9, 13),            # mas/yr
+        'type': 'Open'
+    },
+    'NGC 3532': {
+        'coord': SkyCoord(ra=166.4492*u.deg, dec=-58.7705*u.deg, frame='icrs'),
+        'radius': 0.536 * u.deg,
+        'parallax_range': (1.8, 2.4),      # mas
+        'pmra_range': (-12, -8),           # mas/yr
+        'pmdec_range': (3, 7),             # mas/yr
+        'type': 'Open'
+    },
+    'IC 2602': {
+        'coord': SkyCoord(ra=160.7354*u.deg, dec=-64.3942*u.deg, frame='icrs'),
+        'radius': 0.833 * u.deg,
+        'parallax_range': (6.0, 7.5),      # mas
+        'pmra_range': (-20, -16),          # mas/yr
+        'pmdec_range': (10, 14),           # mas/yr
+        'type': 'Open'
+    },
+    'M4': {
+        'coord': SkyCoord(ra=245.8968*u.deg, dec=-26.5255*u.deg, frame='icrs'),
+        'radius': 0.217 * u.deg,
+        'parallax_range': (0.35, 0.75),    # mas
+        'pmra_range': (-18, -12),          # mas/yr
+        'pmdec_range': (-20, -15),         # mas/yr
+        'type': 'Globular'
     }
 }
 
