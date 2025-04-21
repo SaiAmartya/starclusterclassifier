@@ -164,19 +164,27 @@ def calculate_cluster_features(star_data):
 df_cluster_kinematics = calculate_cluster_features(df_stars)
 
 # Handle potential NaN values produced during feature engineering
-# Simple strategy: fill with median of the column
+# Simple strategy: fill with median of the column or a default value if all are NaN
 print("\nHandling potential NaN values in engineered features...")
 cols_to_fill = ['dispersion_3d_kms', 'orbital_energy', 'orbital_Lz', 'eccentricity']
 for col in cols_to_fill:
      if col in df_cluster_kinematics.columns:
-          # Always calculate the median value
-          median_val = df_cluster_kinematics[col].median()
-          # Fill NaN values if any
-          if df_cluster_kinematics[col].isnull().any():
-               df_cluster_kinematics[col] = df_cluster_kinematics[col].fillna(median_val)
-               print(f"Filled NaNs in '{col}' with median: {median_val:.2f}")
-          # Replace infinite values if any occur
-          df_cluster_kinematics[col] = df_cluster_kinematics[col].replace([np.inf, -np.inf], median_val)
+          # Check if the column has any non-NaN values
+          if not df_cluster_kinematics[col].isna().all():
+               # Calculate median only if there are non-NaN values
+               median_val = df_cluster_kinematics[col].median()
+               # Fill NaN values if any
+               if df_cluster_kinematics[col].isnull().any():
+                    df_cluster_kinematics[col] = df_cluster_kinematics[col].fillna(median_val)
+                    print(f"Filled NaNs in '{col}' with median: {median_val:.2f}")
+               # Replace infinite values if any occur
+               df_cluster_kinematics[col] = df_cluster_kinematics[col].replace([np.inf, -np.inf], median_val)
+          else:
+               # All values are NaN, use a default value (0.0 or other appropriate default)
+               default_val = 0.0
+               df_cluster_kinematics[col] = df_cluster_kinematics[col].fillna(default_val)
+               print(f"All values in '{col}' were NaN, filled with default: {default_val}")
+               # If this column will be used in the model, you might want to drop it instead
 
 # Final check for rows with NaNs in critical features and drop if necessary
 critical_features_for_model = ['dispersion_3d_kms', 'orbital_energy', 'orbital_Lz'] # Example
@@ -213,18 +221,6 @@ if len(df_cluster_kinematics) > 1: # Need at least 2 samples for train/test spli
     # scaler = StandardScaler()
     # X_scaled = scaler.fit_transform(X)
     # X = pd.DataFrame(X_scaled, columns=available_features, index=X.index) # Use scaled data
-
-    # --- >>> ADD DEBUGGING LINES HERE <<< ---
-    print("\n--- DEBUG: Inspecting data BEFORE train_test_split ---")
-    print("df_cluster_kinematics[['cluster_name', 'cluster_type']]:")
-    # Use options to display all rows if needed (for 12 clusters it should be fine)
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-        print(df_cluster_kinematics[['cluster_name', 'cluster_type']])
-
-    print("\nValue counts for 'y' variable (0=Open, 1=Globular):")
-    print(y.value_counts())
-    print("--- END DEBUG ---")
-    # --- >>> END DEBUGGING LINES <<< ---
 
     # Split data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(
